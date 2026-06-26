@@ -1,4 +1,4 @@
-document.querySelectorAll("[data-sidebar-open]").forEach((button) => {
+﻿document.querySelectorAll("[data-sidebar-open]").forEach((button) => {
   button.addEventListener("click", () => document.body.classList.add("sidebar-open"));
 });
 
@@ -12,7 +12,7 @@ document.querySelectorAll("[data-single-submit]").forEach((form) => {
     if (button) {
       button.disabled = true;
       button.dataset.originalText = button.textContent;
-      button.textContent = "Сохраняем…";
+      button.textContent = "РЎРѕС…СЂР°РЅСЏРµРјвЂ¦";
     }
   });
 });
@@ -122,7 +122,7 @@ if (remoteModalElement && window.bootstrap) {
   document.querySelectorAll("[data-modal-url]").forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault();
-      title.textContent = link.dataset.modalTitle || link.textContent.trim() || "Форма";
+      title.textContent = link.dataset.modalTitle || link.textContent.trim() || "Р¤РѕСЂРјР°";
       const url = new URL(link.href, window.location.href);
       url.searchParams.set("modal", "1");
       frame.src = url.toString();
@@ -163,7 +163,7 @@ if (telegramModalElement && window.bootstrap) {
   document.querySelectorAll("[data-telegram-link]").forEach((button) => {
     button.addEventListener("click", () => {
       input.value = button.dataset.telegramLink;
-      expiry.textContent = button.dataset.telegramExpires || "24 часа";
+      expiry.textContent = button.dataset.telegramExpires || "24 С‡Р°СЃР°";
       telegramModal.show();
       telegramModalElement.addEventListener("shown.bs.modal", () => input.focus(), { once: true });
     });
@@ -181,9 +181,23 @@ if (scannerVideo) {
   let stream;
   let detector;
   let scanning = false;
+  let serverDetecting = false;
+
+  const getCsrfToken = () => {
+    const inputToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+    if (inputToken) {
+      return inputToken;
+    }
+    const cookie = document.cookie
+      .split(";")
+      .map((item) => item.trim())
+      .find((item) => item.startsWith("csrftoken="));
+    return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
+  };
 
   const stopScanner = () => {
     scanning = false;
+    serverDetecting = false;
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
       stream = null;
@@ -191,14 +205,59 @@ if (scannerVideo) {
     scannerVideo.srcObject = null;
   };
 
+  const captureFrame = () =>
+    new Promise((resolve) => {
+      if (!scannerVideo.videoWidth || !scannerVideo.videoHeight) {
+        resolve(null);
+        return;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = scannerVideo.videoWidth;
+      canvas.height = scannerVideo.videoHeight;
+      canvas.getContext("2d").drawImage(scannerVideo, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(resolve, "image/jpeg", 0.85);
+    });
+
+  const detectOnServer = async () => {
+    if (serverDetecting) {
+      return null;
+    }
+    serverDetecting = true;
+    try {
+      const blob = await captureFrame();
+      if (!blob) {
+        return null;
+      }
+      const formData = new FormData();
+      formData.append("image", blob, "frame.jpg");
+      const response = await fetch("/scanner/detect/", {
+        method: "POST",
+        headers: { "X-CSRFToken": getCsrfToken() },
+        body: formData,
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      return data.barcode || null;
+    } finally {
+      serverDetecting = false;
+    }
+  };
+
   const scanLoop = async () => {
-    if (!scanning || !detector) {
+    if (!scanning) {
       return;
     }
     try {
-      const codes = await detector.detect(scannerVideo);
-      if (codes.length) {
-        const value = codes[0].rawValue;
+      let value = null;
+      if (detector) {
+        const codes = await detector.detect(scannerVideo);
+        value = codes.length ? codes[0].rawValue : null;
+      } else {
+        value = await detectOnServer();
+      }
+      if (value) {
         stopScanner();
         window.location.href = `/products/?q=${encodeURIComponent(value)}`;
         return;
@@ -206,15 +265,22 @@ if (scannerVideo) {
     } catch {
       status.textContent = "Не удалось распознать кадр. Попробуйте поднести камеру ближе.";
     }
-    window.setTimeout(scanLoop, 250);
+    window.setTimeout(scanLoop, detector ? 250 : 900);
   };
 
   startButton?.addEventListener("click", async () => {
-    if (!("BarcodeDetector" in window)) {
-      status.textContent = "Этот браузер не поддерживает сканирование камерой. Введите штрихкод вручную.";
+    if (!navigator.mediaDevices?.getUserMedia) {
+      status.textContent = "Камера недоступна в этом режиме. Откройте сайт через HTTPS или localhost, либо введите код вручную.";
       return;
     }
-    detector = new BarcodeDetector({ formats: ["ean_13", "code_128"] });
+    detector = null;
+    if ("BarcodeDetector" in window) {
+      try {
+        detector = new BarcodeDetector({ formats: ["ean_13", "code_128"] });
+      } catch {
+        detector = null;
+      }
+    }
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
@@ -222,10 +288,12 @@ if (scannerVideo) {
       scannerVideo.srcObject = stream;
       await scannerVideo.play();
       scanning = true;
-      status.textContent = "Камера запущена. Наведите на штрихкод.";
+      status.textContent = detector
+        ? "Камера запущена. Наведите на штрихкод."
+        : "Камера запущена. Сканирование выполняется сервером, держите штрихкод в кадре.";
       scanLoop();
     } catch {
-      status.textContent = "Нет доступа к камере. Разрешите доступ или введите код вручную.";
+      status.textContent = "Нет доступа к камере. Разрешите доступ, откройте сайт через HTTPS или введите код вручную.";
     }
   });
   stopButton?.addEventListener("click", stopScanner);

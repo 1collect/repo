@@ -12,7 +12,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -563,6 +563,28 @@ def barcode_scanner_upload(request):
         return redirect("barcode_scanner")
     messages.success(request, f"Штрихкод распознан: {barcode_value}")
     return redirect(f"/products/?q={barcode_value}")
+
+@login_required
+@require_POST
+def barcode_scanner_detect(request):
+    uploaded = request.FILES.get("image")
+    if not uploaded:
+        return JsonResponse({"barcode": None, "error": "image_required"}, status=400)
+    suffix = os.path.splitext(uploaded.name)[1] or ".jpg"
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            for chunk in uploaded.chunks():
+                temp_file.write(chunk)
+            temp_path = temp_file.name
+        barcode_value = decode_barcode_from_image(temp_path)
+    finally:
+        if temp_path:
+            try:
+                os.unlink(temp_path)
+            except FileNotFoundError:
+                pass
+    return JsonResponse({"barcode": barcode_value})
 
 @login_required
 def transfer_list(request):

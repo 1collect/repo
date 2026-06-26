@@ -34,6 +34,7 @@ urlpatterns = [
     path("stocks/receipt/", views.stock_receipt, name="stock_receipt"),
     path("scanner/", views.barcode_scanner, name="barcode_scanner"),
     path("scanner/upload/", views.barcode_scanner_upload, name="barcode_scanner_upload"),
+    path("scanner/detect/", views.barcode_scanner_detect, name="barcode_scanner_detect"),
     path("transfers/", views.transfer_list, name="transfer_list"),
     path("transfers/new/", views.transfer_create, name="transfer_create"),
     path("transfers/<int:pk>/", views.transfer_detail, name="transfer_detail"),
