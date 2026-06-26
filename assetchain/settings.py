@@ -6,9 +6,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.environ["DJANGO_DEBUG"] == "1"
 ALLOWED_HOSTS = [x.strip() for x in os.environ["DJANGO_ALLOWED_HOSTS"].split(",") if x.strip()]
-CSRF_TRUSTED_ORIGINS = [
-    x.strip() for x in os.environ["CSRF_TRUSTED_ORIGINS"].split(",") if x.strip()
-]
+CSRF_TRUSTED_ORIGINS_RAW = os.environ["CSRF_TRUSTED_ORIGINS"]
+CSRF_TRUST_ALL_ORIGINS = CSRF_TRUSTED_ORIGINS_RAW.strip() == "*"
+CSRF_TRUSTED_ORIGINS = (
+    []
+    if CSRF_TRUST_ALL_ORIGINS
+    else [x.strip() for x in CSRF_TRUSTED_ORIGINS_RAW.split(",") if x.strip()]
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -26,7 +30,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    "core.middleware.AllowAnyOriginCsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
