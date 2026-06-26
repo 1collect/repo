@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Номенклатура — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Номенклатура</h1><div class="page-subtitle">Модели товаров, категории, штрихкоды и остатки</div></div>
+  {% if user.is_main_admin %}<div class="page-actions"><button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#productCreateModal"><i class="fa-solid fa-plus me-1"></i>Добавить товар</button></div>{% endif %}
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form class="filter-panel" role="search" data-live-filter>
+      <div class="row g-2">
+        <div class="col-xl-6 col-lg-12"><input class="form-control" name="q" value="{{ query }}" placeholder="Начните вводить название, артикул или штрихкод" autocomplete="off" data-live-search autofocus></div>
+        <div class="col-xl-3 col-lg-5">
+          <select class="form-select" name="category">
+            <option value="">Все категории</option>
+            {% for category in categories %}<option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-xl-2 col-lg-4">
+          <select class="form-select" name="state">
+            <option value="active" {% if selected_state == "active" %}selected{% endif %}>Активные</option>
+            <option value="archived" {% if selected_state == "archived" %}selected{% endif %}>Архивные</option>
+            <option value="all" {% if selected_state == "all" %}selected{% endif %}>Все</option>
+          </select>
+        </div>
+        <div class="col-xl-1 col-lg-3 d-flex gap-2">
+          {% if query or selected_category or selected_state != "active" %}<a class="btn btn-light" href="{% url 'product_list' %}">Сбросить</a>{% endif %}
+        </div>
+      </div>
+      <div class="search-hint">USB/Bluetooth-сканер: установите курсор в поиск и считайте штрихкод.</div>
+    </form>
+    <div class="table-responsive">
+      <table class="table">
+        <thead><tr><th>Товар</th><th>Категория</th><th>Артикул</th><th>Штрихкод</th><th>Остатки</th><th></th></tr></thead>
+        <tbody>
+        {% for product in products %}
+          <tr>
+            <td><strong class="product-list-name">{{ product.name }}</strong>{% if not product.is_active %}<span class="badge text-bg-secondary ms-1">Архив</span>{% endif %}{% if product.description %}<div class="small text-secondary text-truncate" style="max-width:260px">{{ product.description }}</div>{% endif %}</td>
+            <td><span class="badge text-bg-light">{{ product.category|default:"Без категории" }}</span></td>
+            <td><span class="code-text">{{ product.article }}</span></td>
+            <td><span class="code-text">{{ product.barcode }}</span></td>
+            <td>{% for stock in product.stocks.all %}<div class="small mb-1">{{ stock.warehouse }} <strong class="ms-1">{{ stock.quantity }} шт.</strong></div>{% empty %}<span class="text-secondary">Нет остатка</span>{% endfor %}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-light" href="{% url 'product_label' product.pk %}"><i class="fa-solid fa-print me-1"></i>Этикетка</a>
+              {% if user.is_main_admin and product.is_active %}
+                <form class="d-inline" method="post" action="{% url 'product_archive' product.pk %}" onsubmit="return confirm('Архивировать товар {{ product.name|escapejs }}?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-box-archive"></i></button></form>
+              {% elif user.is_main_admin %}
+                <form class="d-inline" method="post" action="{% url 'product_restore' product.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-rotate-left"></i></button></form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}<tr><td colspan="6" class="empty-state">По вашему запросу товары не найдены</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "core/_pagination.html" %}
+  </div>
+</div>
+
+{% if user.is_main_admin and product_form %}
+  {% url 'product_create' as product_create_url %}
+  {% include "core/_modal_form.html" with modal_id="productCreateModal" modal_title="Добавить товар" form=product_form action_url=product_create_url %}
+{% endif %}
+{% endblock %}

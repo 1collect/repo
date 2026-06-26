@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Импорт Excel — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Импорт Excel</h1>
+    <div class="page-subtitle">Поступления из Excel применяются одной транзакцией: все строки успешно или весь файл отклоняется.</div>
+  </div>
+  <div class="page-actions">
+    <form method="post" action="{% url 'excel_import_cleanup' %}" onsubmit="return confirm('Удалить физические Excel-файлы? Записи истории останутся.');">
+      {% csrf_token %}
+      <button class="btn btn-light" type="submit"><i class="fa-solid fa-broom me-1"></i>Очистить загруженные Excel</button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-body p-4">
+        <h2 class="section-title mb-2">Выберите файл</h2>
+        <p class="text-secondary">Лист «Остатки» считается поступлением: количество прибавляется к текущему остатку, а не заменяет его.</p>
+        <form method="post" enctype="multipart/form-data" data-single-submit>
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">{{ form.file.label }}</label>
+            {{ form.file }}
+            {% for error in form.file.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <button class="btn btn-primary" type="submit">Импортировать</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-body">
+        <h2 class="section-title">Формат Excel</h2>
+        <ul>
+          <li><strong>Номенклатура:</strong> Наименование, Артикул, Штрихкод, Категория, Описание.</li>
+          <li><strong>Склады:</strong> Наименование.</li>
+          <li><strong>Остатки:</strong> Склад, Артикул или Штрихкод, Количество поступления.</li>
+        </ul>
+        <p class="mb-0">Если есть хотя бы одна ошибка, база не меняется. Новый склад из поступлений должен быть заранее создан или указан на листе «Склады».</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h2 class="section-title">История импортов</h2>
+    </div>
+    <form class="filter-panel" method="get" data-live-filter>
+      <div class="row g-2">
+        <div class="col-xl-7"><input class="form-control" name="q" value="{{ import_query }}" placeholder="Файл или пользователь" autocomplete="off" data-live-search></div>
+        <div class="col-xl-3"><select class="form-select" name="status"><option value="">Все статусы</option>{% for value,label in import_statuses %}<option value="{{ value }}" {% if import_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-xl-2">{% if import_query or import_status %}<a class="btn btn-light w-100" href="{% url 'excel_import' %}">Сбросить</a>{% endif %}</div>
+      </div>
+    </form>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead><tr><th>Дата</th><th>Пользователь</th><th>Файл</th><th>Статус</th><th>Всего</th><th>Применено</th><th>Ошибок</th><th></th></tr></thead>
+        <tbody>
+        {% for item in imports %}
+          <tr>
+            <td class="text-secondary text-nowrap">{{ item.created_at|date:"d.m.Y H:i" }}</td>
+            <td>{{ item.uploaded_by }}</td>
+            <td>{% if item.file %}<a href="{{ item.file.url }}">{{ item.original_filename }}</a>{% else %}{{ item.original_filename }} <span class="text-secondary">(файл очищен)</span>{% endif %}</td>
+            <td>{% if item.status == "success" %}<span class="badge text-bg-success">success</span>{% elif item.status == "pending" %}<span class="badge text-bg-warning">pending</span>{% else %}<span class="badge text-bg-danger">failed</span>{% endif %}</td>
+            <td>{{ item.total_rows }}</td>
+            <td>{{ item.applied_rows }}</td>
+            <td>{{ item.error_rows }}</td>
+            <td class="text-end">
+              <div class="d-flex justify-content-end gap-1">{% if item.preview_json %}<a class="btn btn-sm btn-outline-primary" href="{% url 'excel_import_preview' item.pk %}">Строки</a>{% endif %}<form method="post" action="{% url 'excel_import_delete' item.pk %}" onsubmit="return confirm('Удалить импорт {{ item.original_filename|escapejs }}?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button></form></div>
+            </td>
+          </tr>
+          {% if item.preview_json %}
+          <tr class="collapse" id="importRows{{ item.pk }}">
+            <td colspan="8">
+              <div class="import-preview">
+                <div class="small text-secondary mb-2">Завершён: {{ item.finished_at|date:"d.m.Y H:i" }}</div>
+                <div class="table-responsive">
+                  <table class="table table-sm import-preview-table">
+                    <thead><tr><th>Лист</th><th>Строка</th><th>Статус</th><th>Данные</th><th>Ошибки</th></tr></thead>
+                    <tbody>
+                    {% for row in item.preview_json %}
+                      <tr class="{% if row.status == 'error' %}table-danger{% endif %}">
+                        <td>{{ row.sheet }}</td>
+                        <td>{{ row.row }}</td>
+                        <td>{% if row.status == "error" %}<span class="badge text-bg-danger">ошибка</span>{% else %}<span class="badge text-bg-success">ok</span>{% endif %}</td>
+                        <td>{% for key,value in row.values.items %}<span class="import-cell"><strong>{{ key }}:</strong> {{ value }}</span>{% endfor %}</td>
+                        <td>{% for error in row.errors %}<div>{{ error }}</div>{% empty %}<span class="text-secondary">—</span>{% endfor %}</td>
+                      </tr>
+                    {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+        {% empty %}
+          <tr><td colspan="8" class="empty-state">Импортов пока нет</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

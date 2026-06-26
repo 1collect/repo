@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Поступление товара — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Поступление товара</h1>
+    <div class="page-subtitle">Выберите существующую номенклатуру. Администратор может сразу создать новую, если товара ещё нет.</div>
+  </div>
+</div>
+
+<form method="post" data-single-submit>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="row g-4">
+    <div class="col-xl-7">
+      <div class="card h-100">
+        <div class="card-body p-lg-4">
+          <h2 class="section-title">Данные поступления</h2>
+          <div class="section-copy mb-4">Количество будет добавлено к остатку выбранного товара на складе.</div>
+
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.warehouse.id_for_label }}">{{ form.warehouse.label }}</label>
+            {{ form.warehouse }}
+            {% for error in form.warehouse.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.product.id_for_label }}">{{ form.product.label }}</label>
+            {{ form.product }}
+            {% if form.product.help_text %}<div class="form-text">{{ form.product.help_text }}</div>{% endif %}
+            {% for error in form.product.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.quantity.id_for_label }}">{{ form.quantity.label }}</label>
+            {{ form.quantity }}
+            {% if form.quantity.help_text %}<div class="form-text">{{ form.quantity.help_text }}</div>{% endif %}
+            {% for error in form.quantity.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if form.new_product_name %}
+    <div class="col-xl-5">
+      <div class="card h-100">
+        <div class="card-body p-lg-4">
+          <h2 class="section-title">Товара нет в списке?</h2>
+          <div class="section-copy mb-4">Заполняйте этот блок только для новой модели. Артикул и штрихкод создадутся автоматически.</div>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.new_product_name.id_for_label }}">{{ form.new_product_name.label }}</label>
+            {{ form.new_product_name }}
+            {% if form.new_product_name.help_text %}<div class="form-text">{{ form.new_product_name.help_text }}</div>{% endif %}
+            {% for error in form.new_product_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.new_product_category.id_for_label }}">{{ form.new_product_category.label }}</label>
+            {{ form.new_product_category }}
+            {% for error in form.new_product_category.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.new_product_description.id_for_label }}">{{ form.new_product_description.label }}</label>
+            {{ form.new_product_description }}
+            {% for error in form.new_product_description.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="d-flex gap-2 mt-4">
+    <button class="btn btn-primary" type="submit">Оформить поступление</button>
+    <a class="btn btn-light" href="{% url 'stock_list' %}">Отмена</a>
+  </div>
+</form>
+{% endblock %}

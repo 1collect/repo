@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Обзор — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Обзор</h1>
+    <div class="page-subtitle">Состояние складов и последние действия в системе</div>
+  </div>
+  <div class="page-actions">
+    <button class="btn btn-light" type="button" data-bs-toggle="modal" data-bs-target="#stockReceiptModal"><i class="fa-solid fa-plus me-1"></i>Поступление</button>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#transferCreateModal">Новое перемещение</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl"><div class="card metric-card"><div class="metric-label">Склады</div><div class="metric">{{ warehouse_count }}</div><div class="metric-note">доступно вам</div></div></div>
+  <div class="col-6 col-xl"><div class="card metric-card"><div class="metric-label">Модели товаров</div><div class="metric">{{ product_count }}</div><div class="metric-note">в номенклатуре</div></div></div>
+  <div class="col-6 col-xl"><div class="card metric-card"><div class="metric-label">Единиц на складах</div><div class="metric">{{ stock_total }}</div><div class="metric-note">общий остаток</div></div></div>
+  <div class="col-6 col-xl"><div class="card metric-card"><div class="metric-label">Перемещения</div><div class="metric">{{ transfer_count }}</div><div class="metric-note">за всё время</div></div></div>
+  <div class="col-6 col-xl"><div class="card metric-card"><div class="metric-label">Сейчас в пути</div><div class="metric text-primary">{{ in_transit_count }}</div><div class="metric-note">ожидают получения</div></div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-8">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div><h2 class="section-title">Последние операции</h2><div class="section-copy">Поступления и движения товаров</div></div>
+          <a class="btn btn-sm btn-light" href="{% url 'operation_list' %}">Вся история</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead><tr><th>Дата</th><th>Операция</th><th>Товар</th><th>Пользователь</th></tr></thead>
+            <tbody>
+              {% for item in latest_operations %}
+              <tr><td class="text-secondary text-nowrap">{{ item.created_at|date:"d.m.Y H:i" }}</td><td><strong>{{ item.action }}</strong></td><td>{{ item.product_name_snapshot|default:"—" }}</td><td>{{ item.user_name_snapshot|default:item.user }}</td></tr>
+              {% empty %}<tr><td colspan="4" class="empty-state">Операций пока нет</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h2 class="section-title">Низкие остатки</h2>
+        <div class="section-copy mb-3">Товары, которых осталось не больше трёх</div>
+        {% for stock in low_stocks %}
+          <div class="d-flex justify-content-between align-items-center border-bottom py-3">
+            <span><strong class="d-block">{{ stock.product.name }}</strong><small class="text-secondary">{{ stock.warehouse }}</small></span>
+            <span class="badge {% if stock.quantity == 0 %}text-bg-danger{% else %}text-bg-warning{% endif %}">{{ stock.quantity }} шт.</span>
+          </div>
+        {% empty %}<div class="empty-state">Критичных остатков нет</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if receipt_form %}
+  {% url 'stock_receipt' as stock_receipt_url %}
+  {% include "core/_modal_form.html" with modal_id="stockReceiptModal" modal_title="Поступление товара" form=receipt_form action_url=stock_receipt_url %}
+{% endif %}
+{% if transfer_form %}
+  {% url 'transfer_create' as transfer_create_url %}
+  {% include "core/_modal_form.html" with modal_id="transferCreateModal" modal_title="Новое перемещение" form=transfer_form action_url=transfer_create_url %}
+{% endif %}
+{% endblock %}

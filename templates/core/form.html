@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header form-page-header">
+  <div><h1 class="page-title">{{ title }}</h1><div class="page-subtitle">Заполните поля и проверьте данные перед сохранением</div></div>
+</div>
+<div class="form-page">
+  <div class="form-card-wrap">
+    <div class="card">
+      <div class="card-body p-lg-4">
+        <form method="post" data-single-submit>
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="row g-3">
+          {% for field in form %}
+            <div class="{% if field.name == 'description' %}col-12{% else %}col-md-6{% endif %}">
+              {% if field.field.widget.input_type == "checkbox" %}
+                <div class="form-check mt-4">{{ field }}<label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+              {% else %}
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+              {% endif %}
+              {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+              {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+          </div>
+          <div class="d-flex gap-2 mt-4 pt-2">
+            <button class="btn btn-primary" type="submit">Сохранить</button>
+            <a class="btn btn-light" href="javascript:history.back()">Отмена</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

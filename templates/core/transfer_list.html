@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Перемещения — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Перемещения</h1><div class="page-subtitle">Передача товаров между складами с полной историей статусов</div></div>
+  <div class="page-actions"><button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#transferCreateModal"><i class="fa-solid fa-plus me-1"></i>Новое перемещение</button></div>
+</div>
+<div class="card">
+  <div class="card-body">
+    <form class="filter-panel" data-live-filter>
+      <div class="row g-2">
+        <div class="col-xl-5"><input class="form-control" name="q" value="{{ query }}" placeholder="Начните вводить товар, код или склад" autocomplete="off" data-live-search></div>
+        <div class="col-xl-3"><select class="form-select" name="status"><option value="">Все статусы</option>{% for value,label in statuses %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-xl-3"><select class="form-select" name="warehouse"><option value="">Все склады</option>{% for warehouse in warehouses %}<option value="{{ warehouse.pk }}" {% if selected_warehouse == warehouse.pk|stringformat:"s" %}selected{% endif %}>{{ warehouse }}</option>{% endfor %}</select></div>
+        <div class="col-xl-1 d-flex gap-2">{% if query or selected_status or selected_warehouse %}<a class="btn btn-light" href="{% url 'transfer_list' %}">Сбросить</a>{% endif %}</div>
+      </div>
+    </form>
+    <div class="table-responsive">
+      <table class="table">
+        <thead><tr><th>№</th><th>Перемещение</th><th>Товар</th><th>Количество</th><th>Статус</th><th>Создано</th></tr></thead>
+        <tbody>
+        {% for transfer in transfers %}
+          <tr class="clickable-row" data-row-href="{% url 'transfer_detail' transfer.pk %}" tabindex="0">
+            <td><span class="code-text">№{{ transfer.pk }}</span></td>
+            <td><strong>{{ transfer.source_name_snapshot|default:transfer.source.name }}</strong><span class="text-secondary mx-2">→</span><strong>{{ transfer.destination_name_snapshot|default:transfer.destination.name }}</strong></td>
+            <td>{{ transfer.product_name_snapshot|default:transfer.product.name }}<div class="small text-secondary">{{ transfer.product_article_snapshot|default:transfer.product.article }}</div></td>
+            <td><strong>{{ transfer.quantity }} шт.</strong></td>
+            <td><span class="badge text-bg-{% if transfer.status == 'completed' %}success{% elif transfer.status == 'in_transit' or transfer.status == 'shipped' %}primary{% elif transfer.status == 'sender_rejected' or transfer.status == 'admin_rejected' or transfer.status == 'cancelled' %}danger{% else %}warning{% endif %}">{{ transfer.get_status_display }}</span></td>
+            <td class="text-secondary text-nowrap">{{ transfer.created_at|date:"d.m.Y H:i" }}</td>
+          </tr>
+        {% empty %}<tr><td colspan="6" class="empty-state">Перемещения не найдены</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "core/_pagination.html" %}
+  </div>
+</div>
+
+{% if transfer_form %}
+  {% url 'transfer_create' as transfer_create_url %}
+  {% include "core/_modal_form.html" with modal_id="transferCreateModal" modal_title="Новое перемещение" form=transfer_form action_url=transfer_create_url %}
+{% endif %}
+{% endblock %}

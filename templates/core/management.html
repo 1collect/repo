@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Управление — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Управление</h1>
+    <div class="page-subtitle">Пользователи, роли и склады AssetChain</div>
+  </div>
+  <div class="page-actions"><a class="btn btn-light" href="/admin/">Техническая Django Admin</a></div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <div>
+        <h2 class="section-title">Пользователи</h2>
+        <div class="section-copy">Отключайте учетные записи вместо удаления — история операций сохранится.</div>
+      </div>
+      <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#userCreateModal"><i class="fa-solid fa-user-plus me-1"></i>Пользователь</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Пользователь</th><th>Роль</th><th>Telegram</th><th>Статус</th><th></th></tr></thead>
+        <tbody>
+        {% for item in users %}
+          <tr>
+            <td>
+              <strong>{{ item }}</strong>
+              <div class="small text-secondary">{{ item.username }}{% if item.email %} · {{ item.email }}{% endif %}</div>
+            </td>
+            <td>{{ item.get_role_display }}{% if item.is_superuser %}<span class="badge text-bg-dark ms-1">superuser</span>{% endif %}</td>
+            <td>
+              {% if not item.is_active %}
+                <span class="text-secondary">—</span>
+              {% elif item.telegram_id %}
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                  <span class="badge text-bg-success">Подключён</span>
+                  <form method="post" action="{% url 'management_user_unlink_telegram' item.pk %}" onsubmit="return confirm('Отвязать Telegram пользователя {{ item|escapejs }}? Старая ссылка подключения перестанет работать.');">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-light" type="submit">Отвязать</button>
+                  </form>
+                </div>
+              {% elif telegram_bot_username %}
+                <button class="btn btn-sm btn-light" type="button" data-telegram-link="https://t.me/{{ telegram_bot_username }}?start={{ item.telegram_link_token }}" data-telegram-expires="{{ item.telegram_link_expires_at|date:'d.m.Y H:i' }}">
+                  <i class="fa-brands fa-telegram me-1"></i>Ссылка подключения
+                </button>
+              {% else %}
+                <span class="text-secondary">Бот не настроен</span>
+              {% endif %}
+            </td>
+            <td>{% if item.is_active %}<span class="badge text-bg-success">Активен</span>{% else %}<span class="badge text-bg-secondary">Отключён</span>{% endif %}</td>
+            <td class="text-end"><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#{{ item.edit_modal_id }}"><i class="fa-solid fa-pen"></i></button></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-secondary">Пользователей нет.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <div>
+        <h2 class="section-title">Склады</h2>
+        <div class="section-copy">Ответственный отправляет и принимает товар, администратор согласует перемещения.</div>
+      </div>
+      <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#warehouseCreateModal"><i class="fa-solid fa-plus me-1"></i>Склад</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Склад</th><th>Ответственный</th><th>Статус</th><th></th></tr></thead>
+        <tbody>
+        {% for warehouse in warehouses %}
+          <tr>
+            <td><strong>{{ warehouse.name }}</strong></td>
+            <td>{{ warehouse.responsible|default:"Все" }}</td>
+            <td>{% if warehouse.is_active %}<span class="badge text-bg-success">Активен</span>{% else %}<span class="badge text-bg-secondary">Отключён</span>{% endif %}</td>
+            <td class="text-end"><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#{{ warehouse.edit_modal_id }}"><i class="fa-solid fa-pen"></i></button></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="text-secondary">Складов нет.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if user_create_form %}
+  {% url 'management_user_create' as user_create_url %}
+  {% include "core/_modal_form.html" with modal_id="userCreateModal" modal_title="Новый пользователь" form=user_create_form action_url=user_create_url single_column=True %}
+{% endif %}
+{% for item in users %}
+  {% if item.edit_form %}
+    {% url 'management_user_edit' item.pk as user_edit_url %}
+    {% include "core/_modal_form.html" with modal_id=item.edit_modal_id modal_title="Изменить пользователя" form=item.edit_form action_url=user_edit_url single_column=True %}
+  {% endif %}
+{% endfor %}
+{% if warehouse_create_form %}
+  {% url 'management_warehouse_create' as warehouse_create_url %}
+  {% include "core/_modal_form.html" with modal_id="warehouseCreateModal" modal_title="Новый склад" form=warehouse_create_form action_url=warehouse_create_url single_column=True %}
+{% endif %}
+{% for warehouse in warehouses %}
+  {% if warehouse.edit_form %}
+    {% url 'management_warehouse_edit' warehouse.pk as warehouse_edit_url %}
+    {% include "core/_modal_form.html" with modal_id=warehouse.edit_modal_id modal_title="Изменить склад" form=warehouse.edit_form action_url=warehouse_edit_url single_column=True %}
+  {% endif %}
+{% endfor %}
+<div class="modal fade" id="telegramLinkModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Ссылка подключения Telegram</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="telegramLinkInput">Одноразовая ссылка</label>
+        <input id="telegramLinkInput" class="form-control" readonly>
+        <div class="form-text mt-2">Ссылка действует 24 часа или до первого использования. Срок: <span data-telegram-expiry>—</span></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal">Закрыть</button>
+        <button class="btn btn-primary" type="button" data-copy-telegram-link><i class="fa-solid fa-copy me-1"></i>Копировать</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

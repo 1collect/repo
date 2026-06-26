@@ -1,0 +1,33 @@
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Label" aria-hidden="true" data-focus-modal>
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable app-form-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="{{ modal_id }}Label">{{ modal_title }}</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <form method="post" action="{{ action_url }}" data-single-submit>
+        <div class="modal-body">
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="row g-3">
+          {% for field in form %}
+            <div class="{% if single_column or field.name == 'description' or field.name == 'reason' or field.name == 'new_product_description' %}col-12{% else %}col-md-6{% endif %}">
+              {% if field.field.widget.input_type == "checkbox" %}
+                <div class="form-check mt-4">{{ field }}<label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+              {% else %}
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+              {% endif %}
+              {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+              {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-light" type="button" data-bs-dismiss="modal">Отмена</button>
+          <button class="btn btn-primary" type="submit">{{ submit_label|default:"Сохранить" }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

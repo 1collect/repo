@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Предпросмотр импорта — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Предпросмотр импорта</h1>
+    <div class="page-subtitle">{{ batch.original_filename }} · строк: {{ batch.total_rows }} · ошибок: {{ batch.error_rows }}</div>
+  </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <form method="post" action="{% url 'excel_import_apply' batch.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Применить</button></form>
+  <form method="post" action="{% url 'excel_import_delete' batch.pk %}" onsubmit="return confirm('Удалить импорт {{ batch.original_filename|escapejs }}?');">{% csrf_token %}<button class="btn btn-outline-danger" type="submit">Удалить</button></form>
+  <a class="btn btn-light" href="{% url 'dashboard' %}">На главную</a>
+  {% if batch.file %}<a class="btn btn-light" href="{{ batch.file.url }}">Открыть Excel</a>{% endif %}
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form class="filter-panel" method="get" data-live-filter>
+      <div class="row g-2">
+        <div class="col-xl-6"><input class="form-control" name="q" value="{{ query }}" placeholder="Поиск по строкам, колонкам и ошибкам" autocomplete="off" data-live-search></div>
+        <div class="col-xl-4">
+          <select class="form-select" name="state">
+            <option value="" {% if not state %}selected{% endif %}>Все строки</option>
+            <option value="error" {% if state == 'error' %}selected{% endif %}>Только ошибки</option>
+            <option value="ok" {% if state == 'ok' %}selected{% endif %}>Только готовые</option>
+          </select>
+        </div>
+        <div class="col-xl-2">{% if query or state %}<a class="btn btn-light w-100" href="{% url 'excel_import_preview' batch.pk %}">Сбросить</a>{% endif %}</div>
+      </div>
+    </form>
+    <div class="table-responsive">
+      <table class="table table-sm import-preview-table">
+        <thead><tr><th>Лист</th><th>Строка</th><th>Статус</th><th>Колонки Excel</th><th>Ошибки</th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+          <tr class="{% if row.status == 'error' %}table-danger{% endif %}">
+            <td>{{ row.sheet }}</td>
+            <td>{{ row.row }}</td>
+            <td>{% if row.status == "error" %}<span class="badge text-bg-danger">ошибка</span>{% else %}<span class="badge text-bg-success">готово</span>{% endif %}</td>
+            <td>{% for key,value in row.values.items %}<span class="import-cell"><strong>{{ key }}:</strong> {{ value }}</span>{% endfor %}</td>
+            <td>{% for error in row.errors %}<div>{{ error }}</div>{% empty %}<span class="text-secondary">—</span>{% endfor %}</td>
+          </tr>
+        {% empty %}<tr><td colspan="5" class="empty-state">Строки не найдены</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}История — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">История операций</h1><div class="page-subtitle">Неизменяемый журнал поступлений, согласований, отправок и получений</div></div>
+</div>
+<div class="card">
+  <div class="card-body">
+    <form class="filter-panel" data-live-filter>
+      <div class="row g-2">
+        <div class="col-xl-5"><input class="form-control" name="q" value="{{ query }}" placeholder="Начните вводить товар, действие или пользователя" autocomplete="off" data-live-search></div>
+        <div class="col-xl-3"><select class="form-select" name="action"><option value="">Все операции</option>{% for item in actions %}<option value="{{ item }}" {% if selected_action == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+        <div class="col-xl-3"><select class="form-select" name="warehouse"><option value="">Все склады</option>{% for warehouse in warehouses %}<option value="{{ warehouse.pk }}" {% if selected_warehouse == warehouse.pk|stringformat:"s" %}selected{% endif %}>{{ warehouse }}</option>{% endfor %}</select></div>
+        <div class="col-xl-1 d-flex gap-2">{% if query or selected_action or selected_warehouse %}<a class="btn btn-light" href="{% url 'operation_list' %}">Сбросить</a>{% endif %}</div>
+      </div>
+    </form>
+    <div class="table-responsive">
+      <table class="table">
+        <thead><tr><th>Дата</th><th>Операция</th><th>Товар</th><th>Склад / маршрут</th><th>Причина / решение</th><th>Кол-во</th><th>Остаток после</th><th>Пользователь</th><th>Статус</th></tr></thead>
+        <tbody>
+        {% for op in operations %}
+          <tr>
+            <td class="text-secondary text-nowrap">{{ op.created_at|date:"d.m.Y H:i" }}</td>
+            <td><strong>{{ op.action }}</strong></td>
+            <td>{% if op.product_name_snapshot %}{{ op.product_name_snapshot }}<div class="small text-secondary">{{ op.product_article_snapshot }} · {{ op.product_barcode_snapshot }}</div>{% else %}—{% endif %}</td>
+            <td>{% if op.source_name_snapshot %}{{ op.source_name_snapshot }}{% if op.destination_name_snapshot %}<span class="text-secondary mx-1">→</span>{{ op.destination_name_snapshot }}{% endif %}{% elif op.destination_name_snapshot %}{{ op.destination_name_snapshot }}{% else %}—{% endif %}</td>
+            <td>
+              {% if op.transfer_reason %}<div>{{ op.transfer_reason }}</div>{% endif %}
+              {% if op.admin_decision %}<div class="small text-secondary">{{ op.admin_decision }}{% if op.rejection_reason %}: {{ op.rejection_reason }}{% endif %}</div>{% endif %}
+              {% if op.old_value or op.new_value %}
+                <div class="small text-secondary">Было: {{ op.old_value|default:"—" }}</div>
+                <div class="small text-secondary">Стало: {{ op.new_value|default:"—" }}</div>
+              {% endif %}
+              {% if not op.transfer_reason and not op.admin_decision and not op.old_value and not op.new_value %}—{% endif %}
+            </td>
+            <td>{% if op.quantity %}<strong>{{ op.quantity }} шт.</strong>{% else %}—{% endif %}</td>
+            <td>{% if op.resulting_quantity is not None %}<strong>{{ op.resulting_quantity }} шт.</strong>{% else %}—{% endif %}</td>
+            <td>{{ op.user_name_snapshot|default:op.user }}</td>
+            <td><span class="badge text-bg-light">{{ op.status|default:"—" }}</span></td>
+          </tr>
+        {% empty %}<tr><td colspan="9" class="empty-state">Записи истории не найдены</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "core/_pagination.html" %}
+  </div>
+</div>
+{% endblock %}

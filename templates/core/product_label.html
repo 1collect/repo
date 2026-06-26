@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Этикетка {{ product.article }} — AssetChain{% endblock %}
+{% block content %}
+<style>
+  .label-sheet { display: flex; flex-wrap: wrap; justify-content: center; gap: 4mm; }
+  .label-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+  .label-control { display: grid; gap: 6px; min-width: 170px; }
+  .label-control label { margin: 0; color: #64748b; font-size: .76rem; font-weight: 800; }
+  .asset-label {
+    width: 58mm;
+    height: 40mm;
+    box-sizing: border-box;
+    padding: 3mm;
+    background: #fff;
+    color: #000;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+  }
+  .label-name {
+    height: 8mm;
+    overflow: hidden;
+    text-align: center;
+    font-size: 12pt;
+    font-weight: 700;
+    line-height: 1.05;
+    text-transform: uppercase;
+  }
+  .label-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 2mm;
+    margin-top: .5mm;
+    font-size: 8.5pt;
+    font-weight: 700;
+  }
+  .label-barcode {
+    display: block;
+    width: 100%;
+    height: 19mm;
+    object-fit: fill;
+  }
+  .label-code {
+    margin-top: 1mm;
+    text-align: center;
+    font-size: 6.5pt;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: .8mm;
+    white-space: nowrap;
+  }
+  @page { size: auto; margin: 8mm; }
+  @media print {
+    body { background: #fff !important; margin: 0; }
+    .app-sidebar, .mobile-header, .page-header, .sidebar-backdrop { display: none !important; }
+    .app-main { margin: 0 !important; }
+    .content-area { max-width: none !important; padding: 0 !important; margin: 0 !important; }
+    .label-sheet { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 4mm; }
+    .asset-label { margin: 0; box-shadow: none !important; break-inside: avoid; page-break-inside: avoid; }
+  }
+</style>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Этикетка товара</h1>
+    <div class="page-subtitle">Формат 58×40 мм</div>
+  </div>
+  <div class="page-actions">
+    <form method="get" class="label-controls">
+      <div class="label-control">
+        <label for="labelQuantity">Количество на этикетке</label>
+        <input id="labelQuantity" class="form-control" type="number" name="quantity" value="{{ quantity }}" min="1" max="9999">
+      </div>
+      <div class="label-control">
+        <label for="labelCopies">Сколько распечатать</label>
+        <input id="labelCopies" class="form-control" type="number" name="copies" value="{{ copies }}" min="1" max="9999">
+      </div>
+      <button class="btn btn-outline-primary">Обновить</button>
+    </form>
+    <button class="btn btn-primary" onclick="window.print()">Печать</button>
+  </div>
+</div>
+
+<div class="label-sheet">
+  {% for _ in label_copies %}
+  <div class="asset-label shadow-sm">
+    <div class="label-name">{{ product.name }}</div>
+    <div class="label-meta">
+      <span>КОЛ-ВО: {{ quantity }}</span>
+      <span>АРТИКУЛ: {{ product.article }}</span>
+    </div>
+    <img class="label-barcode" src="data:image/svg+xml;base64,{{ barcode_svg }}" alt="Штрихкод {{ product.barcode }}">
+    <div class="label-code">{{ product.barcode }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

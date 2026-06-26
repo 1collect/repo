@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Перемещение #{{ transfer.pk }} — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header transfer-page">
+  <div><h1 class="page-title">Перемещение #{{ transfer.pk }}</h1><div class="page-subtitle">{{ transfer.source_name_snapshot|default:transfer.source.name }} → {{ transfer.destination_name_snapshot|default:transfer.destination.name }}</div></div>
+  <div class="page-actions"><a href="{% url 'transfer_list' %}" class="btn btn-light">← К списку</a></div>
+</div>
+<div class="row g-4 transfer-page">
+  <div class="col-xl-7">
+    <div class="card">
+      <div class="card-body p-lg-4">
+        <div class="mb-4">
+          <span class="transfer-status transfer-status-{{ transfer.status }}">{{ transfer.get_status_display }}</span>
+        </div>
+        <div class="transfer-route mb-4">
+          <div class="route-node">
+            <div class="metric-label">Склад-отправитель</div>
+            <strong>{{ transfer.source_name_snapshot|default:transfer.source.name }}</strong>
+          </div>
+          <div class="route-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="route-node">
+            <div class="metric-label">Склад-получатель</div>
+            <strong>{{ transfer.destination_name_snapshot|default:transfer.destination.name }}</strong>
+          </div>
+        </div>
+        <div class="row g-4">
+          <div class="col-sm-6"><div class="metric-label">Товар</div><strong class="d-block mt-1">{{ transfer.product_name_snapshot|default:transfer.product.name }}</strong><div class="small text-secondary mt-1">{{ transfer.product_category_snapshot }}</div><div class="code-stack mt-2"><span><small>Артикул</small>{{ transfer.product_article_snapshot|default:transfer.product.article }}</span><span><small>Штрихкод</small>{{ transfer.product_barcode_snapshot|default:transfer.product.barcode }}</span></div></div>
+          <div class="col-sm-6"><div class="metric-label">Количество</div><strong class="d-block mt-1 fs-4">{{ transfer.quantity }} шт.</strong></div>
+          <div class="col-12"><div class="metric-label">Причина перемещения</div><strong class="d-block mt-1">{{ transfer.reason }}</strong></div>
+          <div class="col-sm-6"><div class="metric-label">Создал</div><strong class="d-block mt-1">{{ transfer.created_by_name_snapshot|default:transfer.created_by }}</strong></div>
+          <div class="col-sm-6"><div class="metric-label">Дата создания</div><strong class="d-block mt-1">{{ transfer.created_at|date:"d.m.Y H:i" }}</strong></div>
+          {% if transfer.sender_approved_at %}
+            <div class="col-sm-6"><div class="metric-label">Отправитель согласовал</div><strong class="d-block mt-1">{{ transfer.sender_approved_by_name_snapshot|default:transfer.sender_approved_by }}</strong></div>
+            <div class="col-sm-6"><div class="metric-label">Дата согласия отправителя</div><strong class="d-block mt-1">{{ transfer.sender_approved_at|date:"d.m.Y H:i" }}</strong></div>
+          {% endif %}
+          {% if transfer.sender_rejected_at %}
+            <div class="col-sm-6"><div class="metric-label">Отправитель отказал</div><strong class="d-block mt-1">{{ transfer.sender_rejected_by_name_snapshot|default:transfer.sender_rejected_by }}</strong></div>
+            <div class="col-sm-6"><div class="metric-label">Дата отказа отправителя</div><strong class="d-block mt-1">{{ transfer.sender_rejected_at|date:"d.m.Y H:i" }}</strong></div>
+            <div class="col-12"><div class="metric-label">Причина отказа отправителя</div><strong class="d-block mt-1">{{ transfer.sender_rejection_reason }}</strong></div>
+          {% endif %}
+          {% if transfer.approved_at %}
+            <div class="col-sm-6"><div class="metric-label">Согласовал</div><strong class="d-block mt-1">{{ transfer.approved_by_name_snapshot|default:transfer.approved_by }}</strong></div>
+            <div class="col-sm-6"><div class="metric-label">Дата согласования</div><strong class="d-block mt-1">{{ transfer.approved_at|date:"d.m.Y H:i" }}</strong></div>
+          {% endif %}
+          {% if transfer.rejected_at %}
+            <div class="col-sm-6"><div class="metric-label">Отклонил</div><strong class="d-block mt-1">{{ transfer.rejected_by_name_snapshot|default:transfer.rejected_by }}</strong></div>
+            <div class="col-sm-6"><div class="metric-label">Дата отказа</div><strong class="d-block mt-1">{{ transfer.rejected_at|date:"d.m.Y H:i" }}</strong></div>
+            <div class="col-12"><div class="metric-label">Причина отказа</div><strong class="d-block mt-1">{{ transfer.rejection_reason }}</strong></div>
+          {% endif %}
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top">
+          {% if transfer.status == "waiting_sender_approval" and user.is_main_admin or transfer.status == "waiting_sender_approval" and transfer.source.responsible_id == user.id or transfer.status == "waiting_sender_approval" and not transfer.source.responsible_id and user.role == "responsible" %}
+            <form method="post" action="{% url 'transfer_action' transfer.pk 'sender_approve' %}" data-single-submit>{% csrf_token %}<button class="btn btn-transfer-primary">Согласен отправить</button></form>
+            <button class="btn btn-transfer-danger" type="button" data-bs-toggle="modal" data-bs-target="#senderRejectModal">Отказать</button>
+          {% endif %}
+          {% if transfer.status == "waiting_admin_approval" and user.is_main_admin %}
+            <form method="post" action="{% url 'transfer_action' transfer.pk 'approve' %}" data-single-submit>{% csrf_token %}<button class="btn btn-transfer-primary">Согласовать</button></form>
+            <button class="btn btn-transfer-danger" type="button" data-bs-toggle="modal" data-bs-target="#adminRejectModal">Отклонить</button>
+          {% endif %}
+          {% if transfer.status == "approved" and user.is_main_admin or transfer.status == "approved" and transfer.source.responsible_id == user.id or transfer.status == "approved" and not transfer.source.responsible_id and user.role == "responsible" %}
+            <form method="post" action="{% url 'transfer_action' transfer.pk 'ship' %}" data-single-submit>{% csrf_token %}<button class="btn btn-transfer-primary">Отгружено</button></form>
+          {% endif %}
+          {% if transfer.status == "in_transit" and user.is_main_admin or transfer.status == "in_transit" and transfer.destination.responsible_id == user.id or transfer.status == "in_transit" and not transfer.destination.responsible_id and user.role == "responsible" %}
+            <form method="post" action="{% url 'transfer_action' transfer.pk 'receive' %}" data-single-submit>{% csrf_token %}<button class="btn btn-transfer-primary">Получено</button></form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-5">
+    <div class="card h-100">
+      <div class="card-body">
+        <h2 class="section-title mb-4">Хронология</h2>
+        {% for op in transfer.operations.all %}
+          <div class="timeline-item"><span class="timeline-dot"></span><strong>{{ op.action }}</strong><div class="small text-secondary mt-1">{{ op.created_at|date:"d.m.Y H:i" }} · {{ op.user_name_snapshot|default:op.user }}</div></div>
+        {% empty %}<div class="empty-state">Записей пока нет</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% if transfer.status == "waiting_sender_approval" %}
+<div class="modal fade" id="senderRejectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{% url 'transfer_action' transfer.pk 'sender_reject' %}" data-single-submit>
+        {% csrf_token %}
+        <div class="modal-header">
+          <h2 class="modal-title h5">Причина отказа отправителя</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body">
+          {{ reject_form.rejection_reason.label_tag }}
+          {{ reject_form.rejection_reason }}
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-light" type="button" data-bs-dismiss="modal">Отмена</button>
+          <button class="btn btn-transfer-danger">Отказать</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% if transfer.status == "waiting_admin_approval" and user.is_main_admin %}
+<div class="modal fade" id="adminRejectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{% url 'transfer_action' transfer.pk 'reject' %}" data-single-submit>
+        {% csrf_token %}
+        <div class="modal-header">
+          <h2 class="modal-title h5">Причина отклонения</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body">
+          {{ reject_form.rejection_reason.label_tag }}
+          {{ reject_form.rejection_reason }}
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-light" type="button" data-bs-dismiss="modal">Отмена</button>
+          <button class="btn btn-transfer-danger">Отклонить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

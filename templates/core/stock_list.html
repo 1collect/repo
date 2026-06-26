@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Остатки — AssetChain{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Остатки</h1><div class="page-subtitle">Фактическое количество товаров по складам</div></div>
+  <div class="page-actions"><button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#stockReceiptModal"><i class="fa-solid fa-plus me-1"></i>Поступление товара</button></div>
+</div>
+<div class="card">
+  <div class="card-body">
+    <form class="filter-panel" data-live-filter>
+      <div class="row g-2">
+        <div class="col-xl-5"><input class="form-control" name="q" value="{{ query }}" placeholder="Начните вводить товар, артикул или штрихкод" autocomplete="off" data-live-search></div>
+        <div class="col-xl-3"><select class="form-select" name="warehouse"><option value="">Все склады</option>{% for warehouse in warehouses %}<option value="{{ warehouse.pk }}" {% if selected_warehouse == warehouse.pk|stringformat:"s" %}selected{% endif %}>{{ warehouse }}</option>{% endfor %}</select></div>
+        <div class="col-xl-3"><select class="form-select" name="category"><option value="">Все категории</option>{% for category in categories %}<option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select></div>
+        <div class="col-xl-1 d-flex gap-2">{% if query or selected_warehouse or selected_category %}<a class="btn btn-light" href="{% url 'stock_list' %}">Сбросить</a>{% endif %}</div>
+      </div>
+    </form>
+    <div class="table-responsive">
+      <table class="table">
+        <thead><tr><th>Склад</th><th>Товар</th><th>Категория</th><th>Артикул</th><th>Количество</th><th>Обновлено</th></tr></thead>
+        <tbody>{% for stock in stocks %}<tr><td><strong>{{ stock.warehouse }}</strong></td><td>{{ stock.product.name }}</td><td><span class="badge text-bg-light">{{ stock.product.category|default:"—" }}</span></td><td><span class="code-text">{{ stock.product.article }}</span></td><td><span class="badge {% if stock.quantity == 0 %}text-bg-danger{% elif stock.quantity <= 3 %}text-bg-warning{% else %}text-bg-success{% endif %}">{{ stock.quantity }} шт.</span></td><td class="text-secondary text-nowrap">{{ stock.updated_at|date:"d.m.Y H:i" }}</td></tr>{% empty %}<tr><td colspan="6" class="empty-state">Остатки не найдены</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% include "core/_pagination.html" %}
+  </div>
+</div>
+
+{% if receipt_form %}
+  {% url 'stock_receipt' as stock_receipt_url %}
+  {% include "core/_modal_form.html" with modal_id="stockReceiptModal" modal_title="Поступление товара" form=receipt_form action_url=stock_receipt_url %}
+{% endif %}
+{% endblock %}
